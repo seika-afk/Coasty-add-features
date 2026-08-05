@@ -1,13 +1,10 @@
 import { model } from "./llm"
-import { screenshot } from "./screenshot"
+import {  screenshot_ } from "./screenshot"
 
 const run = async (action: string,model_:string ="") => {
-//get screenshot
-  const image = screenshot()
+  const image_path= await screenshot_()
   //query
-  const res = model(action,image,model_)
-
-
+  const res = model(action, image_path, model_) //get screenshot
 }
 
 

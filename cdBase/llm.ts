@@ -1,3 +1,5 @@
-export const model = async(query:string, image , model_:string) => {
+export const model = async(query:string, image_path:string, model_:string) => {
+
+
 
 }
