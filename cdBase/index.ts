@@ -1,10 +1,23 @@
 import { model } from "./llm"
 import {  screenshot_ } from "./screenshot"
 
-const run = async (action: string,model_:string ="") => {
-  const image_path= await screenshot_()
+const run = async (action: string ) => {
+  console.log(" ========STARTING=========")
+ console.log("Taking Initial screenshot...")
+ try{
+  const image_path = await screenshot_()
+ }
+ catch (error) {
+   console.log("ERROR WHILE SCREENSHOTTING .")
+   console.log(error)
+  }
+  console.log("=== Success: Screenshot")
+
   //query
-  const res = model(action, image_path, model_) //get screenshot
+  console.log("Conversing with LLM ")
+  const res = await model(action, image_path) //get screenshot
+  console.log("LLM RETURND:")
+  console.log(res.content)
 }
 
 
