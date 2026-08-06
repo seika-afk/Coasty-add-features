@@ -25,5 +25,5 @@ const run = async (action: string) => {
   console.log(res.content)
 }
 
-const query = " Click on the prompts.ts file on the file manager bar"
+const query = " Click on the prompts.ts file on the file manager bar on right of it"
 run(query)
