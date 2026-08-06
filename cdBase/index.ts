@@ -1,25 +1,29 @@
 import { model } from "./llm"
-import {  screenshot_ } from "./screenshot"
+import { screenshot_ } from "./screenshot"
 
-const run = async (action: string ) => {
+const run = async (action: string) => {
   console.log(" ========STARTING=========")
- console.log("Taking Initial screenshot...")
- try{
-  const image_path = await screenshot_()
- }
- catch (error) {
-   console.log("ERROR WHILE SCREENSHOTTING .")
-   console.log(error)
-  }
-  console.log("=== Success: Screenshot")
+  console.log("Taking Initial screenshot...")
 
-  //query
+  let image_path: string = ""
+  try {
+    image_path = await screenshot_()
+  } catch (error) {
+    console.log("ERROR WHILE SCREENSHOTTING .")
+    console.log(error)
+  }
+
+  if (!image_path) {
+    console.log("No screenshot available, aborting.")
+    return
+  }
+
+  console.log("=== Success: Screenshot")
   console.log("Conversing with LLM ")
-  const res = await model(action, image_path) //get screenshot
+  const res = await model(action, image_path)
   console.log("LLM RETURND:")
   console.log(res.content)
 }
 
-
-const query= "open browser then search  seika-afk "
+const query = " Click on the prompts.ts file on the file manager bar"
 run(query)

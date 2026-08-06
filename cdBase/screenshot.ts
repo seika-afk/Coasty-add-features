@@ -1,19 +1,14 @@
-import screenshot from "screenshot-desktop";
+import { execSync } from "child_process";
 import fs from "fs";
-export const screenshot_ = async () => {
 
+export const screenshot_ = () => {
   const filename = `screens/screenshot-${Date.now()}.png`;
   try {
-//create screen folder -> take ss
     fs.mkdirSync("screens", { recursive: true });
-    await screenshot({
-      filename,
-    });
-
-    return filename
+    execSync(`grim ${filename}`);
+    return filename;
+  } catch (error) {
+    console.error(error);
+    return "";
   }
-  catch (error) {
-    console.error(error)
-    return ""
-  }
-}
+};
