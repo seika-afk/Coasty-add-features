@@ -3,7 +3,7 @@ import { ChatOpenRouter } from "@langchain/openrouter";
 import dotenv from "dotenv";
 import { fileURLToPath } from "url";
 import path from "path"
-import { TEXT_PROMPT } from "./prompts";
+import {  VISION_MODEL_PROMPT } from "./prompts";
 
 export const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, ".env") });
@@ -28,7 +28,7 @@ export const model = async (query: string, image_path: string) => {
     {
       role: "system",
       content: [
-       {type:"text",text:TEXT_PROMPT}
+       {type:"text",text:VISION_MODEL_PROMPT}
      ]}, {
 
       role: "user",
