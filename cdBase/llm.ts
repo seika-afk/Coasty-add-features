@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import { fileURLToPath } from "url";
 import path from "path"
 import {  VISION_MODEL_PROMPT } from "./prompts";
+import { StateGraph,END,START } from "@langchain/langgraph";
 
 export const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, ".env") });
@@ -40,3 +41,53 @@ export const model = async (query: string, image_path: string) => {
   ]);
   return response;
 };
+
+interface GraphState{
+  query: string;
+  history: string[];
+  current_summary?: string;
+  current_coords?: { x: number, y: number };
+  status: boolean;
+
+}
+////////////////////////////////////NODES
+
+////////////////////////////////////////////// MAIN GRAPH
+const run_graph = async (query:string) => {
+
+
+  const graph = new StateGraph<GraphState>({
+    channels: {
+      query: null,
+      history: {
+        value: (curr: string[] = [], update: string[]) => curr.concat(update),
+        default: () => [],
+      },
+      current_summary: null,
+      current_coords: null,
+      status: null,
+    }  })
+  graph.addNode("vision", visionNode)
+  graph.addNode("reasoning", reasoningNode)
+
+  graph.addEdge(START, "vision");
+  graph.addConditionalEdges("vision", (state: GraphState) => {
+    if (state.status) {
+      return "done"
+    }
+    return "reasoning"
+
+  }, { done: END, reasoning: "reasoning" })
+
+  graph.addEdge("reasoning", "vision")
+  const app = graph.compile()
+
+  const result = await app.invoke({
+    query,
+    history: [],
+    status: false,
+    current_coords: null,
+    current_summary:"",
+  })
+  return result.current_summary ?? ""
+}

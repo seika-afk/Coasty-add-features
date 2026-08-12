@@ -1,7 +1,11 @@
 {
   "dependencies": {
+    "@langchain/core": "^1.2.5",
+    "@langchain/langgraph": "^1.4.9",
     "@langchain/openrouter": "^0.4.6",
+    "@nut-tree-fork/nut-js": "^4.2.6",
     "dotenv": "^17.4.2",
-    "screenshot-desktop": "^1.15.4"
+    "screenshot-desktop": "^1.15.4",
+    "zod": "^4.4.3"
   }
 }
