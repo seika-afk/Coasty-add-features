@@ -5,11 +5,12 @@ import { fileURLToPath } from "url";
 import path from "path"
 import {  VISION_MODEL_PROMPT } from "./prompts";
 import { StateGraph,END,START } from "@langchain/langgraph";
+import { screenshot_ } from "./screenshot";
 
 export const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, ".env") });
 
-const imageToBase64 = (path: string) => {
+export const imageToBase64 = (path: string) => {
   const buffer = fs.readFileSync(path);
  return `data:image/png;base64,${buffer.toString("base64")}`;
 };
@@ -23,26 +24,7 @@ export const visionModel = new ChatOpenRouter({
   });
 
 
-export const model = async (query: string, image_path: string) => {
-  const SS_IMAGE = imageToBase64(image_path);
-  const response = await visionModel.invoke([
-    {
-      role: "system",
-      content: [
-       {type:"text",text:VISION_MODEL_PROMPT}
-     ]}, {
-
-      role: "user",
-      content: [
-        { type: "text",  text: "QUERY : -----------: " + query },
-        { type: "image_url", image_url: { url: SS_IMAGE } },
-      ],
-    },
-  ]);
-  return response;
-};
-
-interface GraphState{
+export interface GraphState{
   query: string;
   history: string[];
   current_summary?: string;
@@ -51,9 +33,80 @@ interface GraphState{
 
 }
 ////////////////////////////////////NODES
+export async function visionNode(state: GraphState): Promise<Partial<GraphState>> {
+console.log(" ENTERED VISION NODE")
 
-////////////////////////////////////////////// MAIN GRAPH
-const run_graph = async (query:string) => {
+  let image_path: string = ""
+
+
+
+  try {
+    console.log("TAKING SCREENSHOT : ",state.history.length+1)
+    image_path = await screenshot_()
+  } catch (error) {
+    console.log("ERROR WHILE SCREENSHOTTING .")
+    console.log(error)
+    throw error;
+  }
+
+
+  const SS_IMAGE = imageToBase64(image_path);
+
+
+    console.log("CONVERSING WITH LLM ")
+  const response = await visionModel.invoke([
+    { role: "system", content: [{ type: "text", text: VISION_MODEL_PROMPT }] },
+    {
+      role: "user",
+      content: [
+        { type: "text", text: "QUERY : -----------: " + state.query },
+        { type: "image_url", image_url: { url: SS_IMAGE } },
+      ],
+    },
+  ]);
+
+
+  const raw = typeof response.content === "string"
+    ? response.content
+    : JSON.stringify(response.content);
+  const cleaned = raw.replace(/```json|```/g, "").trim();
+  console.log("-------------")
+  console.log(cleaned)
+  let parsed: any;
+  try {
+    parsed = JSON.parse(cleaned);
+  } catch {
+    throw new Error(`Vision model returned non-JSON: ${raw.slice(0, 200)}`);
+  }
+  if (typeof parsed.status !== "boolean") {
+    throw new Error(`Vision model returned malformed status: ${JSON.stringify(parsed)}`);
+  }
+  if (parsed.coords !== null && typeof parsed.coords?.x !== "number") {
+    throw new Error(`Vision model returned malformed coords: ${JSON.stringify(parsed)}`);
+  }
+
+
+  const hist = `${JSON.stringify(parsed.coords)} --- summary: ${parsed.summary}`;
+console.log("SUMMARY : ",parsed.summary)
+console.log("MOVING TO REASONING NODE -------------")
+  return {
+    current_coords: parsed.coords ?? undefined,
+    current_summary: parsed.summary,
+    status: parsed.status,
+    history: [hist],
+  };
+}
+
+export async function reasoningNode(state: GraphState) : Promise<Partial<GraphState>>{
+//dummy for now
+
+  console.log(state.history)
+  console.log(state.current_summary)
+  return {};
+}
+
+///////////////////////////////////////////// MAIN GRAPH
+export const run_graph = async (query:string) => {
 
 
   const graph = new StateGraph<GraphState>({
@@ -87,7 +140,9 @@ const run_graph = async (query:string) => {
     history: [],
     status: false,
     current_coords: null,
-    current_summary:"",
-  })
+    current_summary: "",
+  },
+
+   { recursionLimit: 25 })
   return result.current_summary ?? ""
 }

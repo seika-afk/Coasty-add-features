@@ -1,29 +1,16 @@
-import { model } from "./llm"
-import { screenshot_ } from "./screenshot"
+import { run_graph } from "./llm"
 
 const run = async (action: string) => {
-  console.log(" ========STARTING=========")
-  console.log("Taking Initial screenshot...")
-
-  let image_path: string = ""
   try {
-    image_path = await screenshot_()
-  } catch (error) {
-    console.log("ERROR WHILE SCREENSHOTTING .")
-    console.log(error)
+    console.log(" ========STARTING=========")
+    const res = await run_graph(action)
+    console.log("LLM RETURNED:")
+    console.log(res)
+  } catch (err) {
+    console.error("========FAILED=========")
+    console.error(err)
   }
-
-  if (!image_path) {
-    console.log("No screenshot available, aborting.")
-    return
-  }
-
-  console.log("=== Success: Screenshot")
-  console.log("Conversing with LLM ")
-  const res = await model(action, image_path)
-  console.log("LLM RETURND:")
-  console.log(res.content)
 }
 
-const query = " Click on the prompts.ts file on the file manager bar on right of it"
+const query = "Click on the prompts.ts file on the file manager bar on right of it"
 run(query)

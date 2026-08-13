@@ -1,15 +1,26 @@
 import fs from "fs";
-import screenshot from "screenshot-desktop";
+import path from "path";
+import { execFile } from "child_process";
+import { promisify } from "util";
 
-export const screenshot_ = async () => {
-  const filename = `screens/screenshot-${Date.now()}.png`;
+const execFileAsync = promisify(execFile);
+
+export const screenshot_ = async (): Promise<string> => {
+  const dir = "screens";
+  const filename = path.join(dir, `screenshot-${Date.now()}.png`);
+
+  fs.mkdirSync(dir, { recursive: true });
+
   try {
-    fs.mkdirSync("screens", { recusive: true });
-    await screenshot({ filename })
-    return filename
+    await execFileAsync("grim", [filename]);
   } catch (error) {
-    console.log(error)
-    return ""
+    console.error("Screenshot capture failed:", error);
+    throw new Error(`grim failed to capture screenshot: ${error instanceof Error ? error.message : String(error)}`);
   }
 
-}
+  if (!fs.existsSync(filename)) {
+    throw new Error(`grim reported success but output file is missing: ${filename}`);
+  }
+
+  return filename;
+};
