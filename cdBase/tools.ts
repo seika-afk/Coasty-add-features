@@ -1,6 +1,6 @@
 import { tool } from "@langchain/core/tools"
 import { z } from "zod"
-import { mouse, keyboard, Point, straightTo, Button } from "@nut-tree-fork/nut-js";
+import { mouse, keyboard, Point, straightTo} from "@nut-tree-fork/nut-js";
 
 mouse.config.mouseSpeed = 1500;
 

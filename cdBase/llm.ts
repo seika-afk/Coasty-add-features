@@ -3,9 +3,11 @@ import { ChatOpenRouter } from "@langchain/openrouter";
 import dotenv from "dotenv";
 import { fileURLToPath } from "url";
 import path from "path"
-import {  VISION_MODEL_PROMPT } from "./prompts";
+import {  REASONING_MODEL_PROMPT, VISION_MODEL_PROMPT } from "./prompts";
 import { StateGraph,END,START } from "@langchain/langgraph";
 import { screenshot_ } from "./screenshot";
+import { createReactAgent } from "@langchain/langgraph/prebuilt";
+import { guitools } from "./tools";
 
 export const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, ".env") });
@@ -23,6 +25,15 @@ export const visionModel = new ChatOpenRouter({
     maxTokens: 500,
   });
 
+export const reasoningModel = new ChatOpenRouter({
+  model: "deepseek/deepseek-chat-v3.1",
+  temperature: 0,
+  maxTokens: 200,
+})
+const agent = createReactAgent({
+  llm: reasoningModel,
+  tools:guitools
+})
 
 export interface GraphState{
   query: string;
@@ -30,6 +41,7 @@ export interface GraphState{
   current_summary?: string;
   current_coords?: { x: number, y: number };
   status: boolean;
+  current_action_for_reasoning_model:string;
 
 }
 ////////////////////////////////////NODES
@@ -59,8 +71,10 @@ console.log(" ENTERED VISION NODE")
     {
       role: "user",
       content: [
-        { type: "text", text: "QUERY : -----------: " + state.query },
-        { type: "image_url", image_url: { url: SS_IMAGE } },
+        {
+          type: "text",
+          text: "QUERY: " + state.query + "\n\nLAST ACTION HISTORY: " + (state.history.length > 0 ? state.history[state.history.length - 1] : "none yet"),
+        } ,  { type: "image_url", image_url: { url: SS_IMAGE } },
       ],
     },
   ]);
@@ -85,8 +99,12 @@ console.log(" ENTERED VISION NODE")
     throw new Error(`Vision model returned malformed coords: ${JSON.stringify(parsed)}`);
   }
 
+  if (typeof parsed.action !== "string" || parsed.action.trim() === "") {
+    throw new Error(`Vision model returned malformed action: ${JSON.stringify(parsed)}`);
+  }
 
-  const hist = `${JSON.stringify(parsed.coords)} --- summary: ${parsed.summary}`;
+
+  const hist = `${JSON.stringify(parsed.coords)} --- action: ${parsed.action} --- summary: ${parsed.summary}`;
 console.log("SUMMARY : ",parsed.summary)
 console.log("MOVING TO REASONING NODE -------------")
   return {
@@ -94,18 +112,44 @@ console.log("MOVING TO REASONING NODE -------------")
     current_summary: parsed.summary,
     status: parsed.status,
     history: [hist],
+    current_action_for_reasoning_model:parsed.action,
   };
 }
 
-export async function reasoningNode(state: GraphState) : Promise<Partial<GraphState>>{
-//dummy for now
+export async function reasoningNode(state: GraphState): Promise<Partial<GraphState>> {
+  const userInput = [
+    `ACTION: ${state.current_action_for_reasoning_model ?? "none"}`,
+    `COORDS: ${state.current_coords ? JSON.stringify(state.current_coords) : "null"}`,
+    `SUMMARY: ${state.current_summary ?? ""}`,
+  ].join("\n");
 
-  console.log(state.history)
-  console.log(state.current_summary)
-  return {};
-}
+  let result;
+  try {
+    result = await agent.invoke({
+      messages: [
+        { role: "system", content: REASONING_MODEL_PROMPT },
+        { role: "user", content: userInput },
+      ],
+    });
+  } catch (error) {
+    console.error("Reasoning agent invocation failed:", error);
+    throw error;
+  }
 
-///////////////////////////////////////////// MAIN GRAPH
+  const messages = result?.messages;
+  if (!messages || messages.length === 0) {
+    throw new Error("Reasoning agent returned no messages");
+  }
+
+  const lastMessage = messages[messages.length - 1];
+  const actionSummary = typeof lastMessage.content === "string"
+    ? lastMessage.content
+    : JSON.stringify(lastMessage.content);
+
+  return {
+    history: [`REASONING MODEL'S SUMMARY : ${actionSummary}`],
+  };
+}///////////////////////////////////////////// MAIN GRAPH
 export const run_graph = async (query:string) => {
 
 
@@ -119,6 +163,7 @@ export const run_graph = async (query:string) => {
       current_summary: null,
       current_coords: null,
       status: null,
+      current_action_for_reasoning_model:null,
     }  })
   graph.addNode("vision", visionNode)
   graph.addNode("reasoning", reasoningNode)
@@ -141,6 +186,7 @@ export const run_graph = async (query:string) => {
     status: false,
     current_coords: null,
     current_summary: "",
+    current_action_for_reasoning_model:"",
   },
 
    { recursionLimit: 25 })
