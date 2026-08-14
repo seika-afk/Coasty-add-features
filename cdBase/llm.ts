@@ -8,6 +8,7 @@ import { StateGraph,END,START } from "@langchain/langgraph";
 import { screenshot_ } from "./screenshot";
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import { guitools } from "./tools";
+import { screen } from "@nut-tree-fork/nut-js";
 
 export const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, ".env") });
@@ -18,11 +19,30 @@ export const imageToBase64 = (path: string) => {
 };
 
 
+let cachedScale: { x: number; y: number } | null = null;
+async function getScale(imagePath: string) {
+  if (cachedScale) return cachedScale;
+  const buf = fs.readFileSync(imagePath);
+  const PNG_SIG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  if (!buf.subarray(0, 8).equals(PNG_SIG)) {
+    throw new Error(`Screenshot at ${imagePath} isn't actually a PNG (first bytes: ${buf.subarray(0, 8).toString("hex")}) — check screenshot_()'s format option`);
+  }
+  const imgW = buf.readUInt32BE(16); // PNG IHDR width
+  const imgH = buf.readUInt32BE(20); // PNG IHDR height
+  const nutW = await screen.width();
+  const nutH = await screen.height();
+  cachedScale = { x: nutW / imgW, y: nutH / imgH };
+  console.log("SCALE:", cachedScale, "img:", imgW, imgH, "nut:", nutW, nutH);
+  return cachedScale;
+}
+
+
 
 export const visionModel = new ChatOpenRouter({
     model: "qwen/qwen2.5-vl-72b-instruct",
     temperature: 0,
     maxTokens: 500,
+    provider: { require_parameters: true }, 
   });
 
 export const reasoningModel = new ChatOpenRouter({
@@ -77,7 +97,7 @@ console.log(" ENTERED VISION NODE")
         } ,  { type: "image_url", image_url: { url: SS_IMAGE } },
       ],
     },
-  ]);
+  ], { response_format: { type: "json_object" } }); // forces syntactically valid JSON out of the API, instead of relying on the prompt alone
 
 
   const raw = typeof response.content === "string"
@@ -103,12 +123,17 @@ console.log(" ENTERED VISION NODE")
     throw new Error(`Vision model returned malformed action: ${JSON.stringify(parsed)}`);
   }
 
+  let scaledCoords: { x: number; y: number } | null = null;
+  if (parsed.coords) {
+    const s = await getScale(image_path);
+    scaledCoords = { x: parsed.coords.x * s.x, y: parsed.coords.y * s.y };
+  }
 
   const hist = `${JSON.stringify(parsed.coords)} --- action: ${parsed.action} --- summary: ${parsed.summary}`;
 console.log("SUMMARY : ",parsed.summary)
 console.log("MOVING TO REASONING NODE -------------")
   return {
-    current_coords: parsed.coords ?? undefined,
+    current_coords: scaledCoords ?? undefined,
     current_summary: parsed.summary,
     status: parsed.status,
     history: [hist],
