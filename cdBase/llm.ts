@@ -42,7 +42,7 @@ export const visionModel = new ChatOpenRouter({
     model: "qwen/qwen2.5-vl-72b-instruct",
     temperature: 0,
     maxTokens: 500,
-    provider: { require_parameters: true }, 
+    provider: { require_parameters: true },
   });
 
 export const reasoningModel = new ChatOpenRouter({

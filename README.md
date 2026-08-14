@@ -3,8 +3,6 @@
 
 ## List 
 
-1. Base
+1. [x] Base
 2. Multi Modal routing
 3. Explicit prompt injection safety
-
-
