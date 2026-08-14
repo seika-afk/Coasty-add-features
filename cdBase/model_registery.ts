@@ -8,12 +8,7 @@ export interface ModelSpec {
 
 // just collection of diff models , And config -> kind :visidon or reasoning, then CostTier and description
 export const MODEL_REGISTRY: ModelSpec[] = [
-  {
-    id: "qwen/qwen2.5-vl-32b-instruct",
-    kind: "vision",
-    costTier: "low",
-    description: "Cheap vision model. Fine for simple, sparse UIs with large clear buttons. Weak on dense text, small icons, or cluttered screens.",
-  },
+
   {
     id: "qwen/qwen2.5-vl-72b-instruct",
     kind: "vision",
