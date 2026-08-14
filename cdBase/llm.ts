@@ -18,7 +18,6 @@ export const imageToBase64 = (path: string) => {
  return `data:image/png;base64,${buffer.toString("base64")}`;
 };
 
-
 let cachedScale: { x: number; y: number } | null = null;
 async function getScale(imagePath: string) {
   if (cachedScale) return cachedScale;
@@ -32,28 +31,11 @@ async function getScale(imagePath: string) {
   const nutW = await screen.width();
   const nutH = await screen.height();
   cachedScale = { x: nutW / imgW, y: nutH / imgH };
-  console.log("SCALE:", cachedScale, "img:", imgW, imgH, "nut:", nutW, nutH);
+  //console.log("SCALE:", cachedScale, "img:", imgW, imgH, "nut:", nutW, nutH);
   return cachedScale;
 }
 
 
-
-export const visionModel = new ChatOpenRouter({
-    model: "qwen/qwen2.5-vl-72b-instruct",
-    temperature: 0,
-    maxTokens: 500,
-    provider: { require_parameters: true },
-  });
-
-export const reasoningModel = new ChatOpenRouter({
-  model: "deepseek/deepseek-chat-v3.1",
-  temperature: 0,
-  maxTokens: 200,
-})
-const agent = createReactAgent({
-  llm: reasoningModel,
-  tools:guitools
-})
 
 export interface GraphState{
   query: string;
@@ -65,8 +47,9 @@ export interface GraphState{
 
 }
 ////////////////////////////////////NODES
-export async function visionNode(state: GraphState): Promise<Partial<GraphState>> {
-console.log(" ENTERED VISION NODE")
+export async function visionNode(state: GraphState,config:any): Promise<Partial<GraphState>> {
+  const visionModel = config.configurable.visionModel;
+  console.log(" ENTERED VISION NODE")
 
   let image_path: string = ""
 
@@ -141,7 +124,9 @@ console.log("MOVING TO REASONING NODE -------------")
   };
 }
 
-export async function reasoningNode(state: GraphState): Promise<Partial<GraphState>> {
+export async function reasoningNode(state: GraphState,config:any): Promise<Partial<GraphState>> {
+  const agent = config.configurable.agent;
+
   const userInput = [
     `ACTION: ${state.current_action_for_reasoning_model ?? "none"}`,
     `COORDS: ${state.current_coords ? JSON.stringify(state.current_coords) : "null"}`,
@@ -175,8 +160,23 @@ export async function reasoningNode(state: GraphState): Promise<Partial<GraphSta
     history: [`REASONING MODEL'S SUMMARY : ${actionSummary}`],
   };
 }///////////////////////////////////////////// MAIN GRAPH
-export const run_graph = async (query:string) => {
+export const run_graph = async (query:string,models:any) => {
 
+
+    const visionModel = new ChatOpenRouter({
+      model: models.visionModelId,
+      temperature: 0,
+      maxTokens: 500,
+      provider: { require_parameters: true },
+    });
+
+    const reasoningModel = new ChatOpenRouter({
+      model: models.reasoningModelId,
+      temperature: 0,
+      maxTokens: 200,
+    });
+
+    const agent = createReactAgent({ llm: reasoningModel, tools: guitools });
 
   const graph = new StateGraph<GraphState>({
     channels: {
@@ -214,6 +214,6 @@ export const run_graph = async (query:string) => {
     current_action_for_reasoning_model:"",
   },
 
-   { recursionLimit: 25 })
+   { recursionLimit: 25 ,configurable:{visionModel,agent}})
   return result.current_summary ?? ""
 }

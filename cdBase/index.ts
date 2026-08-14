@@ -1,9 +1,12 @@
+import { chooseModels } from "./decide_model"
 import { run_graph } from "./llm"
 
 const run = async (action: string) => {
   try {
     console.log(" ========STARTING=========")
-    const res = await run_graph(action)
+    console.log("----DECIDING MODELS---")
+    const models= await chooseModels(action)
+    const res = await run_graph(action,models)
     console.log("LLM RETURNED:")
     console.log(res)
   } catch (err) {
