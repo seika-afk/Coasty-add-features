@@ -1,4 +1,6 @@
 ## Additional Features for Coasty.ai
+started on : 4th august 2026
+ended on : 14th august 2026
 This repositery consists extra features for coasty.ai . And The behind build thought process with excalidraw files and a Demo Video.
 
 ### Features
